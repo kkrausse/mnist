@@ -11,7 +11,7 @@ pub struct Matrix <T>
 impl<T> Matrix<T> 
 	where T: Mul<Output=T> + Add<Output=T> + Sub<Output=T> + Copy
 {
-	pub fn new(dim: (usize, usize)) -> Matrix<T> {
+	pub fn new(dim: (usize, usize)) -> Matrix<T>{
 		Matrix {
 			a: Vec::new(),
 			dim, 

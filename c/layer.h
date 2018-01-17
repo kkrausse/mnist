@@ -17,9 +17,9 @@ struct Layer {
 	Matrix b;
 }
 
-struct Activation relu = {&rectify, &d_rectify};
-
-void prop_layer(Layer *self, Matrix *input);
-void backprop_layer(Layer *self, Matrix *input);
+struct Matrix prop_layer(struct Layer *self, struct Matrix *input);
+struct Matrix backprop_layer(const struct Layer *self,
+				struct Matrix gradient,
+				struct Layer *gradient_buf);
 
 #endif

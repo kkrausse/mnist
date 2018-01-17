@@ -22,6 +22,22 @@ struct Matrix rand_mat(int m, int n, Number low, Number high)
 	return r;
 }
 
+struct Matrix new_mat(int m, int n)
+{
+	retrun new(m, n);
+}
+
+void delete_mat(struct Matrix *mat)
+{
+	free(mat->a);
+}
+
+void resize_mat(struct Matrix *mat, int m, int n)
+{
+	if (m * n > mat->m * mat->n)
+		mat->a = realloc(mat->a, m * n);
+}
+
 struct Matrix mat_add(const struct Matrix *lhs, const struct Matrix *rhs)
 {
 	int m = lhs->m;
@@ -66,5 +82,21 @@ struct Matrix mat_mul(const struct Matrix *lhs, const struct Matrix *rhs)
 		}
 	}
 	
+	return r;
+}
+
+struct Matrix hada_prod(const struct Matrix *lhs, const struct Matrix *rhs)
+{
+	int m = lhs->m;
+	int n = lhs->n;
+
+	ASSERT(m == rhs->m && n == rhs->n, "Error: cant add matricies\
+		 dimensions dont match");
+	
+	struct Matrix r = new(m, n);
+
+	for (int i = 0; i < m * n; i++)
+		r.a[i] = lhs->a[i] * rhs->a[i];
+
 	return r;
 }
