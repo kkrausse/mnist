@@ -1,141 +1,150 @@
-use ::Matrix;
-use ::nets::*;
-
-use std::ops::{Add, Mul, Div};
-use std::cmp::{PartialOrd, PartialEq};
-
-use std::thread;
+use Matrix;
+use nets::*;
 use std;
+use std::cmp::{PartialEq, PartialOrd};
+use std::ops::{Add, Div, Mul};
+use std::thread;
 
-pub struct FFNet <S, T, U>
-	where S: Mul<Output=S> + Add<Output=S> + Sub<Output=S> + PartialOrd +
-			Copy + From<u16> + Div<Output=S>,
-		T: Activation<S>,
-		U: Cost<S>,
+pub struct FFNet<T>
+    where T: Mul<Output = T>
+                 + Add<Output = T>
+                 + Tub<Output = T>
+                 + PartialOrd
+                 + Copy
+                 + From<u16>
+                 + Div<Output = T>
 {
-	pub w: Vec<Matrix<S>>,
-	pub b: Vec<Matrix<S>>,
-	l: usize,
-	activation: T,
-	cost: U,
-	test_set: Vec<(Matrix<S>, Matrix<S>)>,
+    pub layers: Vec<Layer<T>>,
+    test_set: Vec<(Matrix<T>, Matrix<T>)>,
 }
 
-impl<S, T, U> FFNet<S, T, U>
-	where 
-		S: Mul<Output=S> + Add<Output=S> + Sub<Output=S> + PartialOrd +
-			Copy + From<u16> + Div<Output=S> + std::fmt::Debug,
-		T: Activation<S>,
-		U: Cost<S>,
+impl<T> FFNet<T>
+    where T: Mul<Output = T>
+                 + Add<Output = T>
+                 + Tub<Output = T>
+                 + PartialOrd
+                 + Copy
+                 + From<u16>
+                 + Div<Output = T>
+                 + std::fmt::Debug
 {
-	pub fn new(w: Vec<Matrix<S>>, b: Vec<Matrix<S>>, activation: T, 
-		cost: U, test_set: Vec<(Matrix<S>, Matrix<S>)>) -> FFNet<S, T, U> {
+    pub fn new(layers: Vec<Layer<T>>,
+               test_set: Vec<(Matrix<T>, Matrix<T>)>)
+               -> FFNet<T>
+    {
+        FFNet { layers, test_set }
+    }
 
-		if w.len() != b.len() { panic!("biases and weight vecs should be same dimension") }
-		let l = b.len();
-		FFNet {
-			w,
-			b,
-			l,
-			activation,
-			cost,
-			test_set,
-		}
-	}
+    pub fn get_grad(&self,
+                    batch: Vec<(&Matrix<T>, &Matrix<T>)>)
+                    -> (Vec<Matrix<T>>, Vec<Matrix<T>>)
+    {
+        let batch_size = batch.len();
+        let mut it = batch.iter();
 
-	pub fn get_grad(&self, batch: Vec<(&Matrix<S>, &Matrix<S>)>) 
-		-> (Vec<Matrix<S>>, Vec<Matrix<S>>) {
-		let batch_size = batch.len();
-		let mut it = batch.iter();
+        let &(ref x, ref y) = it.next().unwrap();
+        let (mut delta_w, mut delta_b) = self.backprop(self.feedforward(x), y);
 
-		let &(ref x, ref y) = it.next().unwrap();
-		let (mut delta_w, mut delta_b) = self.backprop(self.feedforward(x), y);
+        for &(ref x, ref y) in it {
+            let (dw, db) = self.backprop(self.feedforward(x), y);
 
-		for &(ref x, ref y) in it {
-			let (dw, db) = self.backprop(self.feedforward(x), y);
-			
-			for j in 0..delta_b.len() {
-				delta_b[j] = &delta_b[j] + &db[j];
-				delta_w[j] = &delta_w[j] + &dw[j];
-			}
- 		}
+            for j in 0..delta_b.len() {
+                delta_b[j] = &delta_b[j] + &db[j];
+                delta_w[j] = &delta_w[j] + &dw[j];
+            }
+        }
 
- 		let l = delta_b.len();
- 		for i in 0..l {
-			for e in &mut delta_b[i].a {
-				*e = *e / S::from(batch_size as u16);
-			}
+        let l = delta_b.len();
+        for i in 0..l {
+            for e in &mut delta_b[i].a {
+                *e = *e / T::from(batch_size as u16);
+            }
 
-			for e in &mut delta_w[i].a {
-				*e = *e / S::from(batch_size as u16);
-			}
-		}
-		(delta_w, delta_b)
-	}
+            for e in &mut delta_w[i].a {
+                *e = *e / T::from(batch_size as u16);
+            }
+        }
+        (delta_w, delta_b)
+    }
 
-	fn feedforward(&self, x: &Matrix<S>) -> (Vec<Matrix<S>>, Vec<Matrix<S>>) {
-		let mut h = Vec::with_capacity(self.l + 1);
-		let mut a = Vec::with_capacity(self.l);
+    fn feedforward(&self, x: Matrix<T>) -> Vec<Matrix<T>>
+    {
+        let mut h = Vec::with_capacity(self.l + 1);
 
-		h.push( x.clone() );
-		for i in 0..self.l {
-			a.push( &(&self.w[i] * &h[i]) + &self.b[i] );
-			h.push( self.activation.f(&a[i]) );
-		}
-		(h, a)
-	}
+        h.push(x.clone());
 
-	fn backprop(&self, (h, a): (Vec<Matrix<S>>, Vec<Matrix<S>>), y: &Matrix<S>) 
-		-> (Vec<Matrix<S>>, Vec<Matrix<S>>) {
+        for i in 0..self.l {
+            x = self.layers[i].prop(x)
+            h.push(x.clone());
+        }
 
-		let mut delta_w = Vec::with_capacity(self.l);
-		let mut delta_b = Vec::with_capacity(self.l);
+        h
+    }
 
-		let mut g = self.cost.df(&h[self.l], y);
+    fn backprop(&self,
+                h: Vec<Matrix<T>>,
+                y: &Matrix<T>)
+                -> Vec<Matrix<T>>
+    {
+        let mut delta_w = Vec::with_capacity(self.l);
+        let mut delta_b = Vec::with_capacity(self.l);
 
-		for i in (0..self.l).rev() {
-			g = g.h_prod( &self.activation.df(&a[i]));
+        let mut g = self.cost.df(&h[self.l], y);
 
-			delta_b.push(g.clone());
-			delta_w.push(&g * &h[i].t());
+        for i in (0..self.l).rev() {
+            g = g.h_prod(&self.activation.df(&a[i]));
 
-			g = &self.w[i].t() * &g;
-		}
-		delta_w.reverse();
-		delta_b.reverse();
-		(delta_w, delta_b)
-	}
+            delta_b.push(g.clone());
+            delta_w.push(&g * &h[i].t());
 
-	pub fn test(&self) {
-		fn argmax<S>(x: &Matrix<S>) -> usize
-			where S: Mul<Output=S> + Add<Output=S> + Sub<Output=S> +
-			 Copy + From<u16> + Div<Output=S> + std::fmt::Debug + PartialOrd
-		{
-			let mut gi = 0;
-			let mut max = x[0];
-			for (i, e) in x.a.iter().enumerate() {
-				if (*e > max) {
-					gi = i;
-					max = *e;
-				}
-			}
-			gi
-		}
+            g = &self.w[i].t() * &g;
+        }
+        delta_w.reverse();
+        delta_b.reverse();
+        (delta_w, delta_b)
+    }
 
-		let mut correct = 0.0;
-		for &(ref x, ref y) in &self.test_set {
-			let y_hat = self.eval(x);
-			if argmax(&y_hat) == argmax(y) {correct = correct + 1.0;}
-		}
-		println!("we are at {}% accuracy so far.", 100.0 * correct / self.test_set.len() as f32);
-	}
+    pub fn test(&self)
+    {
+        fn argmax<T>(x: &Matrix<T>) -> usize
+            where T: Mul<Output = T>
+                         + Add<Output = T>
+                         + Tub<Output = T>
+                         + Copy
+                         + From<u16>
+                         + Div<Output = T>
+                         + std::fmt::Debug
+                         + PartialOrd
+        {
+            let mut gi = 0;
+            let mut max = x[0];
+            for (i, e) in x.a.iter().enumerate() {
+                if (*e > max) {
+                    gi = i;
+                    max = *e;
+                }
+            }
+            gi
+        }
 
-	fn eval(&self, x: &Matrix<S>) -> Matrix<S> {
-		let mut h = x.clone();
-		for i in 0..self.l {
-			let z = &(&self.w[i] * &h) + &self.b[i];
-			h = self.activation.f(&z);
-		}
-		h
-	}
+        let mut correct = 0.0;
+        for &(ref x, ref y) in &self.test_set {
+            let y_hat = self.eval(x);
+            if argmax(&y_hat) == argmax(y) {
+                correct = correct + 1.0;
+            }
+        }
+        println!("we are at {}% accuracy so far.",
+                 100.0 * correct / self.test_set.len() as f32);
+    }
+
+    fn eval(&self, x: &Matrix<T>) -> Matrix<T>
+    {
+        let mut h = x.clone();
+        for i in 0..self.l {
+            let z = &(&self.w[i] * &h) + &self.b[i];
+            h = self.activation.f(&z);
+        }
+        h
+    }
 }

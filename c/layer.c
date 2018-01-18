@@ -18,7 +18,7 @@ struct Activation relu = {&rectify, &d_rectify};
 struct Matrix prop_layer(const struct Layer *self, struct Matrix *input)
 {
 	for (int i = 0; i < input->m * input->n; i++)
-		intput->a[i] = (*(self->activation.f))(a[i]);
+		input->a[i] = (*(self->activation.f))(a[i]);
 	
 	struct Matrix out = mat_mul(&self->w, &input);
 	mat_add_to(&out, &self->b);

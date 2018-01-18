@@ -1,2 +1,6 @@
 format_strings = false
 reorder_imports = true
+tab_spaces = 4
+max_width = 80
+brace_style = "AlwaysNextLine"
+indent_style = "Visual"
