@@ -78,6 +78,10 @@ impl FFNet
             println!("update_params:");
             self.update_params(batch_size, step);
 
+            for layer in &mut self.grad_buf {
+                layer.zero_out();
+            }
+
             println!("did batch");
             if i % 6 == 0 {
                 self.test();
