@@ -1,11 +1,9 @@
 #![allow(dead_code)]
 
 extern crate mnist;
-use mnist::{nets, Matrix};
+use mnist::nets::*;
 
-extern crate rand;
-use rand::Rng;
-use std::time::*;
+use mnist::Matrix;
 
 extern crate crossbeam;
 //use crossbeam;
@@ -15,9 +13,9 @@ use std::io::Read;
 
 fn main()
 {
-    let xs = read_idx("./res/train-images.idx3-ubyte", 10_000);
+    let xs = read_idx("./res/train-images.idx3-ubyte", 2_000);
     println!("got xs");
-    let ys = read_idx("./res/train-labels.idx1-ubyte", 10_000);
+    let ys = read_idx("./res/train-labels.idx1-ubyte", 2_000);
     println!("got ys");
 
     let mut tx = read_idx("./res/train-images.idx3-ubyte", 200);
@@ -27,10 +25,25 @@ fn main()
     let tlen = tx.len();
     let test_set:Vec<_> = tx.drain(0..tlen).zip(ty.drain(0..tlen)).collect();
 
-    let l = 15;
-    let num_cores = 8;
-    let mut step = 0.08;
-    let step_decay = 0.96;
+    //let l = 15;
+    let num_cores = 2;
+    let step = 0.08;
+    let batch_size = 40;
+    //let step_decay = 0.96;
+
+    let af = ATan{};
+
+    let mut net = FFNet::new(
+            vec![
+                Layer::new_rand(af.clone(), 28 * 28, 20 * 20),
+                Layer::new_rand(af.clone(), 20 * 20, 100),
+                Layer::new_rand(af.clone(), 100, 100),
+                Layer::new_rand(af.clone(), 100, 10)
+            ],
+            test_set,
+            num_cores);
+
+    net.train(batch_size, step, (xs, ys));
 }
 
 fn read_idx(fname: &str, num_vals: usize) -> Vec<Matrix<f32>>
@@ -115,32 +128,32 @@ fn read_idx(fname: &str, num_vals: usize) -> Vec<Matrix<f32>>
     }
 }
 
-fn d_2_sec(t: Duration) -> f64
-{
-    let ns = (t.subsec_nanos() / 1000) as f64;
-    t.as_secs() as f64 + ns / 1_000_000.0
-}
+// fn d_2_sec(t: Duration) -> f64
+// {
+//     let ns = (t.subsec_nanos() / 1000) as f64;
+//     t.as_secs() as f64 + ns / 1_000_000.0
+// }
 
-fn const_mat(m: usize, n: usize, c: f32) -> Matrix<f32>
-{
-    let mut a = Vec::with_capacity(m * n);
-    for _ in 0..(m * n) {
-        a.push(c);
-    }
-    Matrix::with_vec((m, n), a)
-}
+// fn const_mat(m: usize, n: usize, c: f32) -> Matrix<f32>
+// {
+//     let mut a = Vec::with_capacity(m * n);
+//     for _ in 0..(m * n) {
+//         a.push(c);
+//     }
+//     Matrix::with_vec((m, n), a)
+// }
 
-fn rand_mat(m: usize, n: usize) -> Matrix<f32>
-{
-    Matrix::with_vec((m, n), gen_vec(m * n))
-}
+// fn rand_mat(m: usize, n: usize) -> Matrix<f32>
+// {
+//     Matrix::with_vec((m, n), gen_vec(m * n))
+// }
 
-fn gen_vec(n: usize) -> Vec<f32>
-{
-    let mut r = Vec::with_capacity(n);
-    let mut rng = rand::thread_rng();
-    for _ in 0..n {
-        r.push(rng.gen_range(-0.05, 0.05));
-    }
-    r
-}
+// fn gen_vec(n: usize) -> Vec<f32>
+// {
+//     let mut r = Vec::with_capacity(n);
+//     let mut rng = rand::thread_rng();
+//     for _ in 0..n {
+//         r.push(rng.gen_range(-0.05, 0.05));
+//     }
+//     r
+// }

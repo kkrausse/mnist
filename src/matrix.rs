@@ -121,7 +121,7 @@ impl<T> Matrix<T>
                 for k in 1..n {
                     acc = acc + rhs[j * n1 + k] * self[i * n + k];
                 }
-                r.a[i * m1 + j] = acc;
+                r.a.push(acc);
             }
         }
         r
@@ -147,7 +147,7 @@ impl<T> Matrix<T>
                 for k in 1..m {
                     acc = acc + rhs[j + k * n1] * self[i + n * k];
                 }
-                r.a[i * n1 + j] = acc;
+                r.a.push(acc);
             }
         }
         r

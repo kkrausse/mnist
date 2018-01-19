@@ -27,6 +27,17 @@ impl<A: Activation<Number>> Layer<A>
         }
     }
 
+    pub fn update(&mut self, other: &Layer<A>, batch_size: usize, step: Number)
+    {
+        for (i, e) in &mut self.w.a.iter_mut().enumerate() {
+            *e = *e - (other.w.a[i] / batch_size as Number) * step;
+        }
+
+        for (i, e) in self.b.a.iter_mut().enumerate() {
+            *e = *e - (other.b.a[i] / batch_size as Number) * step;
+        }
+    }
+
     pub fn zero_out(&mut self)
     {
         for e in &mut self.w.a {

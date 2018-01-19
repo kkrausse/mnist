@@ -5,6 +5,7 @@ pub use self::layer::Layer;
 pub mod layer;
 
 use Matrix;
+
 use std::cmp::PartialEq;
 use std::f32;
 use std::ops::{Add, Mul, Sub};

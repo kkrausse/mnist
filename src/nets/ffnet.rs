@@ -75,7 +75,8 @@ impl FFNet
 
             self.update_with_batch(batch);
 
-
+            println!("update_params:");
+            self.update_params(batch_size, step);
 
             println!("did batch");
             if i % 6 == 0 {
@@ -96,6 +97,8 @@ impl FFNet
         let props_per_thread = batch_size / self.num_threads;
         let chunks = batch.chunks(props_per_thread);
 
+        println!("there are {} chunks", chunks.len());
+
         crossbeam::scope(|scope| {
             for chunk in chunks {
                 let netref = self;
@@ -109,8 +112,11 @@ impl FFNet
         });
     }
 
-    pub fn update_params(&mut self, batch_size: usize, step) {
-        unimplemented!()
+    pub fn update_params(&mut self, batch_size: usize, step: Number)
+    {
+        for (i, layer) in self.layers.iter_mut().enumerate() {
+            layer.update(&*self.grad_buf[i].lock().unwrap() ,batch_size, step);
+        }
     }
 
     fn add_to_gradient(net: &FFNet,
@@ -132,7 +138,6 @@ impl FFNet
             h.push(x.clone());
         }
 
-        h.push(self.output.f(x));
         h
     }
 
@@ -140,7 +145,7 @@ impl FFNet
                 mut h: Vec<Matrix<Number>>,
                 y: &Matrix<Number>)
     {
-        let mut gradient = self.output.df(&h.pop().unwrap(), y);
+        let mut gradient = self.output.df(&self.output.f(h.pop().unwrap()), y);
 
         for i in (0..self.l).rev() {
             gradient = self.layers[i]
