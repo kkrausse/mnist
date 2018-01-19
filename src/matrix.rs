@@ -1,4 +1,9 @@
 use std::ops::{Add, Index, Mul, Sub};
+use std::cmp::PartialOrd;
+
+extern crate rand;
+use self::rand::Rng;
+use std::time::*;
 
 #[derive(Debug)]
 pub struct Matrix<T>
@@ -9,7 +14,12 @@ pub struct Matrix<T>
 }
 
 impl<T> Matrix<T>
-    where T: Mul<Output = T> + Add<Output = T> + Sub<Output = T> + Copy
+    where T: Mul<Output = T>
+        + Add<Output = T>
+        + Sub<Output = T>
+        + Copy
+        + rand::distributions::range::SampleRange
+        + PartialOrd
 {
     pub fn new(dim: (usize, usize)) -> Matrix<T>
     {
@@ -24,6 +34,25 @@ impl<T> Matrix<T>
         }
 
         Matrix { dim, a: v }
+    }
+
+    pub fn new_rand(dim:(usize, usize), low: T, high: T) -> Matrix<T>
+    {
+        let mut v = Vec::with_capacity(dim.0 * dim.1);
+        let mut rng = rand::thread_rng();
+        for _ in 0..(dim.0 * dim.1) {
+            v.push(rng.gen_range(low, high));
+        }
+        Matrix::with_vec(dim, v)
+    }
+
+    pub fn new_const(dim:(usize, usize), c: T) -> Matrix<T>
+    {
+        let mut v = Vec::with_capacity(dim.0 * dim.1);
+        for _ in 0..(dim.0 * dim.1) {
+            v.push(c);
+        }
+        Matrix::with_vec(dim, v)
     }
 
     pub fn add_by(&mut self, rhs: &Matrix<T>)
@@ -81,7 +110,7 @@ impl<T> Matrix<T>
         assert!(n == n1,
                 "can't do self*(rhs^t) with dimensions, {:?} and {:?}",
                 self.dim,
-                lhs.dim);
+                rhs.dim);
 
         let r = Matrix::new((m, m1));
 
@@ -107,7 +136,7 @@ impl<T> Matrix<T>
         assert!(m == m1,
                 "can't do (self^t)*rhs with dimensions, {:?} and {:?}",
                 self.dim,
-                lhs.dim);
+                rhs.dim);
 
         let r = Matrix::new((n, n1));
 
@@ -127,6 +156,8 @@ impl<T> Matrix<T>
 
 impl<T> Clone for Matrix<T>
     where T: Mul<Output = T> + Add<Output = T> + Sub<Output = T> + Copy
+            + rand::distributions::range::SampleRange
+            + PartialOrd
 {
     fn clone(&self) -> Self
     {
@@ -140,6 +171,8 @@ impl<T> Clone for Matrix<T>
 
 impl<'a, 'b, T> Mul<&'b Matrix<T>> for &'a Matrix<T>
     where T: Mul<Output = T> + Add<Output = T> + Sub<Output = T> + Copy
+        + rand::distributions::range::SampleRange
+        + PartialOrd
 {
     type Output = Matrix<T>;
 
@@ -169,6 +202,8 @@ impl<'a, 'b, T> Mul<&'b Matrix<T>> for &'a Matrix<T>
 
 impl<'a, T> Mul<T> for &'a Matrix<T>
     where T: Mul<Output = T> + Add<Output = T> + Sub<Output = T> + Copy
+        + rand::distributions::range::SampleRange
+        + PartialOrd
 {
     type Output = Matrix<T>;
 
@@ -180,6 +215,8 @@ impl<'a, T> Mul<T> for &'a Matrix<T>
 
 impl<'a, 'b, T> Add<&'b Matrix<T>> for &'a Matrix<T>
     where T: Mul<Output = T> + Add<Output = T> + Sub<Output = T> + Copy
+        + rand::distributions::range::SampleRange
+        + PartialOrd
 {
     type Output = Matrix<T>;
 
@@ -203,6 +240,8 @@ impl<'a, 'b, T> Add<&'b Matrix<T>> for &'a Matrix<T>
 
 impl<'a, 'b, T> Sub<&'b Matrix<T>> for &'a Matrix<T>
     where T: Mul<Output = T> + Add<Output = T> + Sub<Output = T> + Copy
+        + rand::distributions::range::SampleRange
+        + PartialOrd
 {
     type Output = Matrix<T>;
 

@@ -1,125 +1,145 @@
-use Matrix;
+//use Matrix;
 use nets::*;
 use std;
-use std::cmp::{PartialEq, PartialOrd};
-use std::ops::{Add, Div, Mul};
-use std::thread;
+// use std::cmp::PartialOrd;
+// use std::ops::{Add, Div, Mul};
+use std::sync::{Arc, Mutex};
+use ::thread_pool::ThreadPool;
 
-pub struct FFNet<T>
-    where T: Mul<Output = T>
-                 + Add<Output = T>
-                 + Tub<Output = T>
-                 + PartialOrd
-                 + Copy
-                 + From<u16>
-                 + Div<Output = T>
+
+type OutFunc = Softmax;
+type AFunc = ATan;
+/*
+    these are the type params from before:
+        Mul<Output = T>
+         + Add<Output = T>
+         + Sub<Output = T>
+         + PartialOrd
+         + Copy
+         + From<u16>
+         + Div<Output = T>
+         + rand::distributions::range::SampleRange
+         + std::marker::Send
+         + std::marker::Sync
+
+    this is just unmanagable so im switching to a type alias
+*/
+
+pub struct FFNet
 {
-    pub layers: Vec<Layer<T>>,
-    test_set: Vec<(Matrix<T>, Matrix<T>)>,
+    pub layers: Vec<Layer<AFunc>>,
+    l: usize,
+    test_set: Vec<(Matrix<Number>, Matrix<Number>)>,
+    grad_buf: Vec<Mutex<Layer<AFunc>>>,
+    thread_pool: ThreadPool,
+    output: OutFunc,
 }
 
-impl<T> FFNet<T>
-    where T: Mul<Output = T>
-                 + Add<Output = T>
-                 + Tub<Output = T>
-                 + PartialOrd
-                 + Copy
-                 + From<u16>
-                 + Div<Output = T>
-                 + std::fmt::Debug
+impl FFNet
 {
-    pub fn new(layers: Vec<Layer<T>>,
-               test_set: Vec<(Matrix<T>, Matrix<T>)>)
-               -> FFNet<T>
+    pub fn new(layers: Vec<Layer<AFunc>>,
+               test_set: Vec<(Matrix<Number>, Matrix<Number>)>,
+               num_threads: usize)
+               -> FFNet
     {
-        FFNet { layers, test_set }
+        let l = layers.len();
+        let mut grad_buf = Vec::with_capacity(l);
+        for layer in layers {
+            grad_buf.push(Mutex::new(layer.clone_zeros()));
+        }
+        let thread_pool = ThreadPool::new(num_threads);
+        let output = OutFunc{};
+
+        FFNet { layers, 
+                l, 
+                test_set,
+                grad_buf,
+                thread_pool, 
+                output}
     }
 
-    pub fn get_grad(&self,
-                    batch: Vec<(&Matrix<T>, &Matrix<T>)>)
-                    -> (Vec<Matrix<T>>, Vec<Matrix<T>>)
+    pub fn train(&mut self,
+                batch_size: usize,
+                step: Number,
+                (x, y): (Vec<Matrix<Number>>, Vec<Matrix<Number>>))
+    {
+        loop {
+
+            let batch = Vec::with_capacity(batch_size);
+
+            let mut rng = rand::thread_rng();
+            for _ in 0..batch_size {
+                let rando = rng.gen::<usize>() % x.len();
+                batch.push((&x[rando], &y[rando]));
+            }
+
+            self.update_with_batch(batch);
+
+            println!("did batch");
+        }
+
+    }
+
+    pub fn update_with_batch(&mut self,
+                    batch: Vec<(&Matrix<Number>, &Matrix<Number>)>)
     {
         let batch_size = batch.len();
-        let mut it = batch.iter();
+        let mut it = batch.drain(0..batch_size);
 
-        let &(ref x, ref y) = it.next().unwrap();
-        let (mut delta_w, mut delta_b) = self.backprop(self.feedforward(x), y);
+        let self_arc = Arc::new(self);
 
-        for &(ref x, ref y) in it {
-            let (dw, db) = self.backprop(self.feedforward(x), y);
+        for (x, y) in it {
+            let (x, y) = (x.clone(), y.clone());
 
-            for j in 0..delta_b.len() {
-                delta_b[j] = &delta_b[j] + &db[j];
-                delta_w[j] = &delta_w[j] + &dw[j];
-            }
+            self.thread_pool.exec(move || {
+                FFNet::add_to_gradient(Arc::clone(&self_arc), x, y)
+            });
         }
-
-        let l = delta_b.len();
-        for i in 0..l {
-            for e in &mut delta_b[i].a {
-                *e = *e / T::from(batch_size as u16);
-            }
-
-            for e in &mut delta_w[i].a {
-                *e = *e / T::from(batch_size as u16);
-            }
-        }
-        (delta_w, delta_b)
     }
 
-    fn feedforward(&self, x: Matrix<T>) -> Vec<Matrix<T>>
+    fn add_to_gradient(net: Arc<&mut FFNet>,
+                        x: Matrix<Number>,
+                        y: Matrix<Number>)
+    {
+        let h = net.prop(x);
+        net.backprop(h, &y);
+    }
+
+    fn prop(&self, x: Matrix<Number>) -> Vec<Matrix<Number>>
     {
         let mut h = Vec::with_capacity(self.l + 1);
 
         h.push(x.clone());
 
-        for i in 0..self.l {
-            x = self.layers[i].prop(x)
+        for layer in self.layers {
+            x = layer.prop(x);
             h.push(x.clone());
         }
 
+        h.push(self.output.f(x));
         h
     }
 
     fn backprop(&self,
-                h: Vec<Matrix<T>>,
-                y: &Matrix<T>)
-                -> Vec<Matrix<T>>
+                h: Vec<Matrix<Number>>,
+                y: &Matrix<Number>)
     {
-        let mut delta_w = Vec::with_capacity(self.l);
-        let mut delta_b = Vec::with_capacity(self.l);
-
-        let mut g = self.cost.df(&h[self.l], y);
+        let mut gradient = self.output.df(&h.pop().unwrap(), y);
 
         for i in (0..self.l).rev() {
-            g = g.h_prod(&self.activation.df(&a[i]));
-
-            delta_b.push(g.clone());
-            delta_w.push(&g * &h[i].t());
-
-            g = &self.w[i].t() * &g;
+            gradient = self.layers[i]
+                        .backprop(gradient, h.pop().unwrap(), self.grad_buf[i]);
         }
-        delta_w.reverse();
-        delta_b.reverse();
-        (delta_w, delta_b)
     }
 
     pub fn test(&self)
     {
-        fn argmax<T>(x: &Matrix<T>) -> usize
-            where T: Mul<Output = T>
-                         + Add<Output = T>
-                         + Tub<Output = T>
-                         + Copy
-                         + From<u16>
-                         + Div<Output = T>
-                         + std::fmt::Debug
-                         + PartialOrd
+        fn argmax(x: &Matrix<Number>) -> usize
         {
             let mut gi = 0;
             let mut max = x[0];
             for (i, e) in x.a.iter().enumerate() {
-                if (*e > max) {
+                if *e > max {
                     gi = i;
                     max = *e;
                 }
@@ -138,13 +158,13 @@ impl<T> FFNet<T>
                  100.0 * correct / self.test_set.len() as f32);
     }
 
-    fn eval(&self, x: &Matrix<T>) -> Matrix<T>
+    fn eval(&self, x: &Matrix<Number>) -> Matrix<Number>
     {
-        let mut h = x.clone();
-        for i in 0..self.l {
-            let z = &(&self.w[i] * &h) + &self.b[i];
-            h = self.activation.f(&z);
+        let mut x = x.clone();
+        for layer in self.layers {
+            x = layer.prop(x);
         }
-        h
+
+        self.output.f(x)
     }
 }

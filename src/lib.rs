@@ -2,6 +2,7 @@ pub use matrix::Matrix;
 pub mod matrix;
 pub mod nets;
 
+mod thread_pool;
 #[cfg(test)]
 mod tests
 {
