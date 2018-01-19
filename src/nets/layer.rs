@@ -23,7 +23,7 @@ impl<A: Activation<Number>> Layer<A>
         Layer {
             w: Matrix::new_const(self.w.dim, 0.0),
             b: Matrix::new_const(self.b.dim, 0.0),
-            activation: self.activation,
+            activation: self.activation.clone(),
         }
     }
 
@@ -38,11 +38,11 @@ impl<A: Activation<Number>> Layer<A>
         }
     }
 
-    pub fn prop(&self, x: Matrix<Number>) -> Matrix<Number>
+    pub fn prop(&self, mut x: Matrix<Number>) -> Matrix<Number>
     {
         x.a.iter_mut().for_each(|e| *e = self.activation.f(*e));
         let mut out = &self.w * &x;
-        out.add(&self.b);
+        out.add_by(&self.b);
         out
     }
 
@@ -52,8 +52,8 @@ impl<A: Activation<Number>> Layer<A>
      */
     pub fn backprop(&self,
                     gradient: Matrix<Number>,
-                    x: Matrix<Number>,
-                    gradient_buf: Mutex<Layer<A>>)
+                    mut x: Matrix<Number>,
+                    gradient_buf: &Mutex<Layer<A>>)
                     -> Matrix<Number>
     {
         let mut out_gradient = self.w.mul_tl(&gradient); //same as (w^t)*g

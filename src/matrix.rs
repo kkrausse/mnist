@@ -112,9 +112,9 @@ impl<T> Matrix<T>
                 self.dim,
                 rhs.dim);
 
-        let r = Matrix::new((m, m1));
+        let mut r = Matrix::new((m, m1));
 
-        let acc;
+        let mut acc;
         for i in 0..m {
             for j in 0..m1 {
                 acc = rhs[j * n1] * self[i * n];
@@ -138,9 +138,9 @@ impl<T> Matrix<T>
                 self.dim,
                 rhs.dim);
 
-        let r = Matrix::new((n, n1));
+        let mut r = Matrix::new((n, n1));
 
-        let acc;
+        let mut acc;
         for i in 0..n {
             for j in 0..n1 {
                 acc = rhs[j] * self[i];

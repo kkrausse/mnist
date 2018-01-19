@@ -7,8 +7,8 @@ use std::sync::{Arc, Mutex};
 use ::thread_pool::ThreadPool;
 
 
-type OutFunc = Softmax;
-type AFunc = ATan;
+extern crate crossbeam;
+
 /*
     these are the type params from before:
         Mul<Output = T>
@@ -31,7 +31,7 @@ pub struct FFNet
     l: usize,
     test_set: Vec<(Matrix<Number>, Matrix<Number>)>,
     grad_buf: Vec<Mutex<Layer<AFunc>>>,
-    thread_pool: ThreadPool,
+    num_threads: usize,
     output: OutFunc,
 }
 
@@ -44,17 +44,16 @@ impl FFNet
     {
         let l = layers.len();
         let mut grad_buf = Vec::with_capacity(l);
-        for layer in layers {
+        for layer in &layers {
             grad_buf.push(Mutex::new(layer.clone_zeros()));
         }
-        let thread_pool = ThreadPool::new(num_threads);
         let output = OutFunc{};
 
         FFNet { layers, 
                 l, 
                 test_set,
                 grad_buf,
-                thread_pool, 
+                num_threads,
                 output}
     }
 
@@ -63,9 +62,10 @@ impl FFNet
                 step: Number,
                 (x, y): (Vec<Matrix<Number>>, Vec<Matrix<Number>>))
     {
+        let mut i = 0;
         loop {
 
-            let batch = Vec::with_capacity(batch_size);
+            let mut batch = Vec::with_capacity(batch_size);
 
             let mut rng = rand::thread_rng();
             for _ in 0..batch_size {
@@ -75,29 +75,45 @@ impl FFNet
 
             self.update_with_batch(batch);
 
+
+
             println!("did batch");
+            if i % 6 == 0 {
+                self.test();
+            }
+            i = i + 1;
         }
 
     }
 
-    pub fn update_with_batch(&mut self,
-                    batch: Vec<(&Matrix<Number>, &Matrix<Number>)>)
+    pub fn update_with_batch(&self,
+                    mut batch: Vec<(&Matrix<Number>, &Matrix<Number>)>)
     {
         let batch_size = batch.len();
-        let mut it = batch.drain(0..batch_size);
 
         let self_arc = Arc::new(self);
 
-        for (x, y) in it {
-            let (x, y) = (x.clone(), y.clone());
+        let props_per_thread = batch_size / self.num_threads;
+        let chunks = batch.chunks(props_per_thread);
 
-            self.thread_pool.exec(move || {
-                FFNet::add_to_gradient(Arc::clone(&self_arc), x, y)
-            });
-        }
+        crossbeam::scope(|scope| {
+            for chunk in chunks {
+                let netref = self;
+                scope.spawn(move || {
+                    for &(x, y) in chunk {
+                        let (x, y) = (x.clone(), y.clone());
+                        FFNet::add_to_gradient(netref, x, y);
+                    }
+                });
+            }
+        });
     }
 
-    fn add_to_gradient(net: Arc<&mut FFNet>,
+    pub fn update_params(&mut self, batch_size: usize, step) {
+        unimplemented!()
+    }
+
+    fn add_to_gradient(net: &FFNet,
                         x: Matrix<Number>,
                         y: Matrix<Number>)
     {
@@ -105,13 +121,13 @@ impl FFNet
         net.backprop(h, &y);
     }
 
-    fn prop(&self, x: Matrix<Number>) -> Vec<Matrix<Number>>
+    fn prop(&self, mut x: Matrix<Number>) -> Vec<Matrix<Number>>
     {
         let mut h = Vec::with_capacity(self.l + 1);
 
         h.push(x.clone());
 
-        for layer in self.layers {
+        for layer in &self.layers {
             x = layer.prop(x);
             h.push(x.clone());
         }
@@ -121,14 +137,14 @@ impl FFNet
     }
 
     fn backprop(&self,
-                h: Vec<Matrix<Number>>,
+                mut h: Vec<Matrix<Number>>,
                 y: &Matrix<Number>)
     {
         let mut gradient = self.output.df(&h.pop().unwrap(), y);
 
         for i in (0..self.l).rev() {
             gradient = self.layers[i]
-                        .backprop(gradient, h.pop().unwrap(), self.grad_buf[i]);
+                        .backprop(gradient, h.pop().unwrap(), &self.grad_buf[i]);
         }
     }
 
@@ -161,7 +177,7 @@ impl FFNet
     fn eval(&self, x: &Matrix<Number>) -> Matrix<Number>
     {
         let mut x = x.clone();
-        for layer in self.layers {
+        for layer in &self.layers {
             x = layer.prop(x);
         }
 

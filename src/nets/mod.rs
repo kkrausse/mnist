@@ -13,7 +13,10 @@ extern crate rand;
 use self::rand::Rng;
 use std::time::*;
 
-type Number = f32;
+pub type Number = f32;
+
+pub type OutFunc = Softmax;
+pub type AFunc = ATan;
 
 
 pub trait Activation<T>
@@ -21,6 +24,7 @@ pub trait Activation<T>
 {
     fn f(&self, x: T) -> T;
     fn df(&self, x: T) -> T;
+    fn clone(&self) -> Self;
 }
 
 pub trait Output<T>
@@ -43,6 +47,11 @@ impl Activation<f32> for ATan
     {
         1.0 / (1.0 + x * x)
     }
+
+    fn clone(&self) -> Self
+    {
+        ATan{}
+    }
 }
 
 
@@ -52,10 +61,10 @@ impl Output<f32> for Softmax
 {
     fn f(&self, x: Matrix<f32>) -> Matrix<f32>
     {
-        let y = Matrix::new(x.dim);
+        let mut y = Matrix::new(x.dim);
 
-        let exp_sum = 0.0;
-        for e in x.a {
+        let mut exp_sum = 0.0;
+        for e in &x.a {
             exp_sum = exp_sum + e.exp();
         }
 

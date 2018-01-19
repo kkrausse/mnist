@@ -25,94 +25,12 @@ fn main()
     println!("got test sets");
 
     let tlen = tx.len();
-    let test_set = tx.drain(0..tlen).zip(ty.drain(0..tlen)).collect();
+    let test_set:Vec<_> = tx.drain(0..tlen).zip(ty.drain(0..tlen)).collect();
 
     let l = 15;
     let num_cores = 8;
     let mut step = 0.08;
     let step_decay = 0.96;
-    let mut w = Vec::with_capacity(l);
-    let mut b = Vec::with_capacity(l);
-
-    for _ in 0..1 {
-        w.push(rand_mat(800, 28 * 28));
-        b.push(const_mat(800, 1, 0.1));
-    }
-
-    w.push(rand_mat(100, 800));
-    b.push(const_mat(100, 1, 0.1));
-
-    //	for _ in 0..1 {
-    //		w.push(rand_mat(100, 100));
-    //		b.push(const_mat(100, 1, 0.1));
-    //	}
-
-    w.push(rand_mat(10, 100));
-    b.push(const_mat(10, 1, 0.1));
-
-    let rlu = nets::ATan {};
-    let mse = nets::MeanSquareError {};
-
-    let mut net = nets::FFNet::new(w, b, rlu, mse, test_set);
-
-    let mut i = 0;
-    let batch_size = 40;
-
-    let mut vals = Vec::with_capacity(num_cores);
-    for _ in 0..num_cores {
-        vals.push(Vec::with_capacity(batch_size / num_cores))
-    }
-
-    let mut batch_num = 1;
-    for (x, y) in xs.iter().zip(ys.iter()) {
-        if i < batch_size {
-            vals[i % num_cores].push((x, y));
-            i = i + 1;
-        } else {
-            let g = crossbeam::scope(|scope| {
-                                         let mut handles =
-                                             Vec::with_capacity(num_cores);
-
-                                         for v in vals.drain(0..num_cores) {
-                                             let netref = &net;
-                                             handles.push(scope.spawn(move || netref.get_grad(v)));
-                                         }
-
-                                         let mut it =
-                                             handles.drain(0..num_cores);
-                                         let mut g = it.next().unwrap().join();
-
-                                         for h in it {
-                                             let gp = h.join();
-                                             for j in 0..net.w.len() {
-                                                 g.0[j] = &g.0[j] + &gp.0[j];
-                                                 g.1[j] = &g.1[j] + &gp.1[j];
-                                             }
-                                         }
-                                         g
-                                     });
-
-            for j in 0..net.w.len() {
-                net.w[j] = &net.w[j] - &(&g.0[j] * (step / num_cores as f32));
-                net.b[j] = &net.b[j] - &(&g.1[j] * (step / num_cores as f32));
-            }
-
-            println!("did batch {}, step is {}", batch_num, step);
-
-            if (batch_num % 4) == 0 {
-                net.test();
-            }
-
-            vals = Vec::with_capacity(num_cores);
-            for _ in 0..num_cores {
-                vals.push(Vec::with_capacity(batch_size / num_cores))
-            }
-
-            i = 0;
-            batch_num += 1;
-            step = step * step_decay;
-        }
-    }
 }
 
 fn read_idx(fname: &str, num_vals: usize) -> Vec<Matrix<f32>>
