@@ -51,7 +51,9 @@ impl<A: Activation<Number>> Layer<A>
 
     pub fn prop(&self, mut x: Matrix<Number>) -> Matrix<Number>
     {
-        x.a.iter_mut().for_each(|e| *e = self.activation.f(*e));
+        for e in x.a.iter_mut() {
+		*e = self.activation.f(*e);
+	}
         let mut out = &self.w * &x;
         out.add_by(&self.b);
         out
@@ -75,8 +77,9 @@ impl<A: Activation<Number>> Layer<A>
         }
 
         //recompute f(x)
-        x.a.iter_mut().for_each(|e| *e = self.activation.f(*e));
-
+        for e in x.a.iter_mut() {
+		*e = self.activation.f(*e);
+	}
         //add regularization term at some point too..
         let mut d_w = gradient.mul_tr(&x);
 

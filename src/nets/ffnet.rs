@@ -72,18 +72,16 @@ impl FFNet
                 let rando = rng.gen::<usize>() % x.len();
                 batch.push((&x[rando], &y[rando]));
             }
-            
             self.update_with_batch(batch);
 
-            println!("update_params:");
             self.update_params(batch_size, step);
 
             for layer in &mut self.grad_buf {
                 (*layer).lock().unwrap().zero_out();
             }
 
-            println!("did batch {}", i + 1);
-            if (i + 1) % 4 == 0 {
+            if (i + 1) % 20 == 0 {
+            	println!("did batch {}", i + 1);
                 self.test();
             }
             i = i + 1;
@@ -98,8 +96,6 @@ impl FFNet
 
         let props_per_thread = batch_size / self.num_threads;
         let chunks = batch.chunks(props_per_thread);
-
-        //println!("there are {} chunks", chunks.len());
 
         crossbeam::scope(|scope| {
             for chunk in chunks {
@@ -188,6 +184,7 @@ impl FFNet
         for layer in &self.layers {
             x = layer.prop(x);
         }
+	//println!("{:?}", x.clone());
 
         self.output.f(x)
     }
