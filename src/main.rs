@@ -18,8 +18,8 @@ fn main()
     let ys = read_idx("./res/train-labels.idx1-ubyte", 2_000);
     println!("got ys");
 
-    let mut tx = read_idx("./res/train-images.idx3-ubyte", 200);
-    let mut ty = read_idx("./res/train-labels.idx1-ubyte", 200);
+    let mut tx = read_idx("./res/train-images.idx3-ubyte", 50);
+    let mut ty = read_idx("./res/train-labels.idx1-ubyte", 50);
     println!("got test sets");
 
     let tlen = tx.len();
@@ -27,17 +27,18 @@ fn main()
 
     //let l = 15;
     let num_cores = 2;
-    let step = 0.08;
+    let step = 0.001;
     let batch_size = 40;
     //let step_decay = 0.96;
 
-    let af = ATan{};
+    let af = AFunc{};
 
     let mut net = FFNet::new(
             vec![
-                Layer::new_rand(af.clone(), 28 * 28, 20 * 20),
-                Layer::new_rand(af.clone(), 20 * 20, 100),
-                Layer::new_rand(af.clone(), 100, 100),
+                Layer::new_rand(af.clone(), 28 * 28, 100),
+                // Layer::new_rand(af.clone(), 20 * 20, 100),
+                // Layer::new_rand(af.clone(), 100, 100),
+                // Layer::new_rand(af.clone(), 100, 100),
                 Layer::new_rand(af.clone(), 100, 10)
             ],
             test_set,

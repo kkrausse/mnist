@@ -13,7 +13,7 @@ impl<A: Activation<Number>> Layer<A>
     pub fn new_rand(activation: A, into: usize, out: usize)
                     -> Layer<A>
     {
-        Layer { w: Matrix::new_rand((out, into), -0.05, 0.05),
+        Layer { w: Matrix::new_rand((out, into), -0.01, 0.01),
                 b: Matrix::new_const((out, 1), 0.01),
                 activation }
     }
@@ -71,14 +71,14 @@ impl<A: Activation<Number>> Layer<A>
 
         //hadamar product of g with df with respect to the input.
         for i in 0..out_gradient.len() {
-            out_gradient.a[i] = out_gradient[i] * x[i]
+            out_gradient.a[i] = out_gradient[i] * self.activation.df(x[i]);
         }
 
         //recompute f(x)
         x.a.iter_mut().for_each(|e| *e = self.activation.f(*e));
 
         //add regularization term at some point too..
-        let d_w = gradient.mul_tr(&x);
+        let mut d_w = gradient.mul_tr(&x);
 
         let mut gradient_buf = gradient_buf.lock().unwrap();
 

@@ -17,7 +17,7 @@ use std::time::*;
 pub type Number = f32;
 
 pub type OutFunc = Softmax;
-pub type AFunc = ATan;
+pub type AFunc = RELU;
 
 
 pub trait Activation<T>
@@ -52,6 +52,26 @@ impl Activation<f32> for ATan
     fn clone(&self) -> Self
     {
         ATan{}
+    }
+}
+
+pub struct RELU {}
+
+impl Activation<Number> for RELU
+{
+    fn f(&self, x: f32) -> f32
+    {
+        if x > 0.0 { x } else { 0.0 }
+    }
+
+    fn df(&self, x: f32) -> f32
+    {
+        if x >= 0.0 { 1.0 } else { 0.0 }
+    }
+
+    fn clone(&self) -> Self
+    {
+        RELU{}
     }
 }
 

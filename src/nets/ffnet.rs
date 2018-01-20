@@ -72,18 +72,18 @@ impl FFNet
                 let rando = rng.gen::<usize>() % x.len();
                 batch.push((&x[rando], &y[rando]));
             }
-
+            
             self.update_with_batch(batch);
 
             println!("update_params:");
             self.update_params(batch_size, step);
 
             for layer in &mut self.grad_buf {
-                layer.zero_out();
+                (*layer).lock().unwrap().zero_out();
             }
 
-            println!("did batch");
-            if i % 6 == 0 {
+            println!("did batch {}", i + 1);
+            if (i + 1) % 4 == 0 {
                 self.test();
             }
             i = i + 1;
@@ -96,12 +96,10 @@ impl FFNet
     {
         let batch_size = batch.len();
 
-        let self_arc = Arc::new(self);
-
         let props_per_thread = batch_size / self.num_threads;
         let chunks = batch.chunks(props_per_thread);
 
-        println!("there are {} chunks", chunks.len());
+        //println!("there are {} chunks", chunks.len());
 
         crossbeam::scope(|scope| {
             for chunk in chunks {
@@ -186,6 +184,7 @@ impl FFNet
     fn eval(&self, x: &Matrix<Number>) -> Matrix<Number>
     {
         let mut x = x.clone();
+
         for layer in &self.layers {
             x = layer.prop(x);
         }
