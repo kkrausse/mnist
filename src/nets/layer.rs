@@ -3,7 +3,7 @@ use std::sync::Mutex;
 
 pub struct Layer<A: Activation<Number>>
 {
-    w: Matrix<Number>,
+    pub w: Matrix<Number>,
     b: Matrix<Number>,
     activation: A,
 }
@@ -13,7 +13,8 @@ impl<A: Activation<Number>> Layer<A>
     pub fn new_rand(activation: A, into: usize, out: usize)
                     -> Layer<A>
     {
-        Layer { w: Matrix::new_rand((out, into), -0.01, 0.01),
+	let w_max = 1.0 /((into * out) as Number).sqrt();
+        Layer { w: Matrix::new_rand((out, into), -1.0 * w_max, w_max),
                 b: Matrix::new_const((out, 1), 0.01),
                 activation }
     }
@@ -69,6 +70,9 @@ impl<A: Activation<Number>> Layer<A>
                     gradient_buf: &Mutex<Layer<A>>)
                     -> Matrix<Number>
     {
+	let alpha = 0.06;
+
+
         let mut out_gradient = self.w.mul_tl(&gradient); //same as (w^t)*g
 
         //hadamar product of g with df with respect to the input.
@@ -80,9 +84,14 @@ impl<A: Activation<Number>> Layer<A>
         for e in x.a.iter_mut() {
 		*e = self.activation.f(*e);
 	}
-        //add regularization term at some point too..
+
         let mut d_w = gradient.mul_tr(&x);
 
+	//regulate
+	for (i, e) in d_w.a.iter_mut().enumerate() {
+	    *e = *e + self.w[i] * alpha;
+	}
+ 
         let mut gradient_buf = gradient_buf.lock().unwrap();
 
         gradient_buf.b.add_by(&gradient);

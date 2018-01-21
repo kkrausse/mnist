@@ -96,6 +96,16 @@ impl<T> Matrix<T>
         Matrix::with_vec((n, m), v)
     }
 
+    pub fn norm(&self) -> T
+    {
+	let mut iter = self.a.iter();
+	let mut acc = *iter.next().unwrap();
+	for e in iter {
+	    acc = acc + *e * *e;
+	}
+	acc
+    }
+
     pub fn len(&self) -> usize
     {
         self.a.len()

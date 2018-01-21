@@ -64,7 +64,6 @@ impl FFNet
     {
         let mut i = 0;
         loop {
-
             let mut batch = Vec::with_capacity(batch_size);
 
             let mut rng = rand::thread_rng();
@@ -80,7 +79,7 @@ impl FFNet
                 (*layer).lock().unwrap().zero_out();
             }
 
-            if (i + 1) % 20 == 0 {
+            if (i + 1) % 200 == 0 {
             	println!("did batch {}", i + 1);
                 self.test();
             }
@@ -150,7 +149,12 @@ impl FFNet
                         .backprop(gradient, h.pop().unwrap(), &self.grad_buf[i]);
         }
     }
-
+    pub fn print_w_norms(&self)
+    {
+	for (i, layer) in self.layers.iter().enumerate() {
+	    println!("w in layer: {} has norm: {}", i, layer.w.norm());
+	}
+    }
     pub fn test(&self)
     {
         fn argmax(x: &Matrix<Number>) -> usize
@@ -165,6 +169,8 @@ impl FFNet
             }
             gi
         }
+
+	self.print_w_norms();
 
         let mut correct = 0.0;
         for &(ref x, ref y) in &self.test_set {
@@ -189,3 +195,4 @@ impl FFNet
         self.output.f(x)
     }
 }
+
