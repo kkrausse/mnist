@@ -70,7 +70,7 @@ impl<A: Activation<Number>> Layer<A>
                     gradient_buf: &Mutex<Layer<A>>)
                     -> Matrix<Number>
     {
-	let alpha = 0.06;
+	let alpha = 0.09;
 
 
         let mut out_gradient = self.w.mul_tl(&gradient); //same as (w^t)*g

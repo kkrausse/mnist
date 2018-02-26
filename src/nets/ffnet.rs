@@ -79,7 +79,7 @@ impl FFNet
                 (*layer).lock().unwrap().zero_out();
             }
 
-            if (i + 1) % 200 == 0 {
+            if (i + 1) % 1000 == 0 {
             	println!("did batch {}", i + 1);
                 self.test();
             }

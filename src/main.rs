@@ -13,29 +13,29 @@ use std::io::Read;
 
 fn main()
 {
-    let xs = read_idx("./res/train-images.idx3-ubyte", 4_000);
+    let xs = read_idx("./res/train-images.idx3-ubyte", 40_000);
     println!("got xs");
-    let ys = read_idx("./res/train-labels.idx1-ubyte", 4_000);
+    let ys = read_idx("./res/train-labels.idx1-ubyte", 40_000);
     println!("got ys");
 
-    let mut tx = read_idx("./res/train-images.idx3-ubyte", 10_000);
-    let mut ty = read_idx("./res/train-labels.idx1-ubyte", 10_000);
+    let mut tx = read_idx("./res/t10k-images.idx3-ubyte", 10_000);
+    let mut ty = read_idx("./res/t10k-labels.idx1-ubyte", 10_000);
     println!("got test sets");
 
     let tlen = tx.len();
     let test_set:Vec<_> = tx.drain(0..tlen).zip(ty.drain(0..tlen)).collect();
 
     let num_cores = 8;
-    let step = 0.005;
-    let batch_size = 48;
+    let step = 0.006;
+    let batch_size = 256;
     //let step_decay = 0.96;
 
     let af = AFunc{};
 
     let mut net = FFNet::new(
             vec![
-                Layer::new_rand(af.clone(), 28 * 28, 100),
-                Layer::new_rand(af.clone(), 100, 20),
+                Layer::new_rand(af.clone(), 28 * 28, 200),
+                Layer::new_rand(af.clone(), 200, 20),
                 //Layer::new_rand(af.clone(), 100, 20),
                 Layer::new_rand(af.clone(), 20, 20),
                 Layer::new_rand(af.clone(), 20, 10)

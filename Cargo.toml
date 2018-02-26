@@ -7,3 +7,6 @@ authors = ["kevinkrausse <kkrausse@ucdavis.edu>"]
 rand = "0.3"
 time = "0.1"
 crossbeam = "0.3.0"
+
+[profile.dev]
+opt-level = 3
